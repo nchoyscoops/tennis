@@ -28,7 +28,7 @@ options(warn = -1)
 
 train_control <- trainControl(
   method = "cv",
-  number = 10, # K-fold cross validation
+  number = 10, # 10-fold cross validation
   classProbs = TRUE,
   summaryFunction=brier_summary
 )
@@ -42,7 +42,6 @@ model <- train(
   metric="Brier Score"
 )
 
-options(warn = oldw)
 
 print(model)
 
@@ -51,18 +50,38 @@ print(model)
 playertest<-player
 
 
-#Brier Score for Winrate
-#faulty because Win rate is calculated for the entire dataset and not cross-validated thereby artificially deflating Brier Score
+#Print average
 average<-(sum(as.numeric(playertest$w_l)-1)/nrow(playertest))
 print(c("Winrate", average))
-playertest<-playertest%>%
-  mutate(brier=((as.numeric(w_l)-1)-average)^2)
-wr_b_score<-mean(playertest$brier)
-print(c("Winrate Brier Score",wr_b_score))
+
+# # Brier Score for Win Rate
+# # faulty because Win rate is calculated for the entire dataset and not cross-validated thereby artificially deflating Brier Score
+# playertest<-playertest%>%
+#   mutate(brier=((as.numeric(w_l)-1)-average)^2)
+# wr_b_score<-mean(playertest$brier)
+# print(c("Winrate Brier Score",wr_b_score))
+
+
+#Brier Score for Win Rate (adapted from https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation)
+playertest<-playertest[sample(nrow(playertest)),] #Randomly shuffle the data
+folds <- cut(seq(1,nrow(playertest)),breaks=10,labels=FALSE) #Create 10 equally size folds
+wr2_b_score<-c()
+for(i in 1:10) #Perform 10 fold cross validation
+  { 
+  testIndexes <- which(folds==i,arr.ind=TRUE)  #Segement your data by fold using the which() function
+  testData <- playertest[testIndexes, ]
+  trainData <- playertest[-testIndexes, ]
+  
+  average<-(sum(as.numeric(testData$w_l)-1)/nrow(testData))
+  trainData<-trainData%>%
+    mutate(brier=((as.numeric(w_l)-1)-average)^2)
+  wr2_b_score<-c(wr2_b_score,mean(trainData$brier))
+}
+print(c("Winrate Brier Score",mean(wr2_b_score)))
 
 
 #Brier Score for Elo Win Probability (https://www.betfair.com.au/hub/tennis-elo-modelling/#:~:text=Elo%20works%20by%20assigning%20a,%2C%20the%20probability%20becomes%2024.1%25.)
-
+#This is fine because Win Probability is not dependent on past data therefore no training needs to occur
 playertest<-playertest%>%
   mutate(pwin=1/(1+10^((loser_eloRating-winner_eloRating)/400)))
 
@@ -72,8 +91,7 @@ pwin_b_score<-mean(playertest$brier)
 print(c("Elo Brier Score",pwin_b_score))
 
 
-#Elo-Cluster Win Probability Model
-
+#Cluster-Elo Win Probability Model
 model <- train(
   w_l ~ opponent_cluster+surface+pwin,
   data = playertest,
@@ -83,6 +101,9 @@ model <- train(
   metric="Brier Score"
 )
 print(c("Cluster-Elo Brier Score",as.numeric(model$results[2])))
+
+
+options(warn = oldw)
 
 
 # #split data into training and test with 75% in training
