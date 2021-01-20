@@ -28,7 +28,7 @@ removefromfilelist_rowthreshold<-function(filelist, threshold){
 filenames <- list.files("./data", pattern="*.xlsx", full.names=TRUE)
 tennis_clusters<-read_excel("./tennis_clusters.xlsx",1)
 
-filenames<-removefromfilelist_rowthreshold(filenames, 150) #change row threshold here
+filenames<-removefromfilelist_rowthreshold(filenames, 200) #change row threshold here
 
 #Run Here
 clusterbrier<-c(integer(length(filenames)))
