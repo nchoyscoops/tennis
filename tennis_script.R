@@ -2,17 +2,16 @@ library(caret)
 library(dplyr)
 library(tidyverse)
 library(broom)
-library(factoextra)
 library(simputation)
 library(readxl)
 
-player_name<-"Pete_Sampras"
+
+# Function pre-processes data by taking a file name, reads it, and adds columns. Passes the player dataframe to build_model
+pre_process<-function(filename){
 
 # Read Files
-tennis_clusters<-read_excel("/Users/nolanchoy/Desktop/tennis_project/tennis/data/tennis_clusters.xlsx",1)
-player_file<-read_excel(paste(c("./data/",player_name,".xlsx"),sep="", collapse=""),1)
-
-player<-player_file
+tennis_clusters<-read_excel("/Users/nolanchoy/Desktop/tennis_project/tennis/tennis_clusters.xlsx",1)
+player<-read_excel(filename,1)
 
 # player name
 player_name_vector<-as.vector(as.matrix(player[,c("winner_name","loser_name")]))
@@ -32,4 +31,5 @@ player<-player%>%
   mutate(opponent_cluster=ifelse(is.na(won_vs_cluster),lost_vs_cluster,won_vs_cluster))%>%
   mutate(w_l=ifelse(is.na(opponent_cluster),NA,ifelse(is.na(lost_vs_cluster),"w",ifelse(is.na(won_vs_cluster),"l",NA))))
 
-source('~/Desktop/tennis_project/tennis/player_modeling.R')
+build_model(player)
+}

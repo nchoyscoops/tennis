@@ -3,15 +3,6 @@ library(dplyr)
 library(tidyverse)
 library(Metrics)
 
-# Cross Validation
-
-# Exclude rows where the opponent's cluster(therefore w_l) is unknown/NA these players are undocumented(not enough match information)
-player<-player[!is.na(player$w_l),]
-player<-player[!is.na(player$surface),]
-
-# Factorize w_l and opponent_cluster
-player$w_l<-factor(player$w_l)
-player$opponent_cluster<-factor(player$opponent_cluster)
 
 # Brier Summary function returns Brier Score
 brier_summary <- function(data, lev = NULL, model = NULL){
@@ -22,6 +13,26 @@ brier_summary <- function(data, lev = NULL, model = NULL){
   names(Brier_all)="Brier Score"
   return(Brier_all)
 }
+
+# Cross Validation
+
+
+# Function takes player data frame and computes brier score for cluster, win rate, and elo methods with cross validation.
+# Adjusts the global vectors containing scores.
+build_model<-function(filename){
+
+player<-filename
+# Exclude rows where the opponent's cluster(therefore w_l) is unknown/NA these players are undocumented(not enough match information)
+player<-player[!is.na(player$w_l),]
+player<-player[!is.na(player$surface),]
+player<-player[!is.na(player$winner_eloRating),]
+player<-player[!is.na(player$loser_eloRating),]
+
+# Factorize w_l and opponent_cluster
+player$w_l<-factor(player$w_l)
+player$opponent_cluster<-factor(player$opponent_cluster)
+
+
 
 oldw <- getOption("warn")
 options(warn = -1)
@@ -43,16 +54,11 @@ model <- train(
 )
 
 
-print(model)
+clusterbrier[c]<<-as.numeric(model$results[2])
 
 
 #Tests
 playertest<-player
-
-
-#Print average
-average<-(sum(as.numeric(playertest$w_l)-1)/nrow(playertest))
-print(c("Winrate", average))
 
 # # Brier Score for Win Rate
 # # faulty because Win rate is calculated for the entire dataset and not cross-validated thereby artificially deflating Brier Score
@@ -65,7 +71,7 @@ print(c("Winrate", average))
 #Brier Score for Win Rate (adapted from https://stats.stackexchange.com/questions/61090/how-to-split-a-data-set-to-do-10-fold-cross-validation)
 playertest<-playertest[sample(nrow(playertest)),] #Randomly shuffle the data
 folds <- cut(seq(1,nrow(playertest)),breaks=10,labels=FALSE) #Create 10 equally size folds
-wr2_b_score<-c()
+wr_b_score<-c()
 for(i in 1:10) #Perform 10 fold cross validation
   { 
   testIndexes <- which(folds==i,arr.ind=TRUE)  #Segement your data by fold using the which() function
@@ -75,9 +81,10 @@ for(i in 1:10) #Perform 10 fold cross validation
   average<-(sum(as.numeric(testData$w_l)-1)/nrow(testData))
   trainData<-trainData%>%
     mutate(brier=((as.numeric(w_l)-1)-average)^2)
-  wr2_b_score<-c(wr2_b_score,mean(trainData$brier))
+  wr_b_score<-c(wr_b_score,mean(trainData$brier))
 }
-print(c("Winrate Brier Score",mean(wr2_b_score)))
+wrbrier[c]<<-mean(wr_b_score)
+# print(c("Winrate Brier Score",mean(wr_b_score)))
 
 
 #Brier Score for Elo Win Probability (https://www.betfair.com.au/hub/tennis-elo-modelling/#:~:text=Elo%20works%20by%20assigning%20a,%2C%20the%20probability%20becomes%2024.1%25.)
@@ -88,31 +95,28 @@ playertest<-playertest%>%
 playertest<-playertest%>%
   mutate(brier=((as.numeric(w_l)-1)-pwin)^2)
 pwin_b_score<-mean(playertest$brier)
-print(c("Elo Brier Score",pwin_b_score))
+elobrier[c]<<-pwin_b_score
+
+# print(c("Elo Brier Score",pwin_b_score))
 
 
-#Cluster-Elo Win Probability Model
-model <- train(
-  w_l ~ opponent_cluster+surface+pwin,
-  data = playertest,
-  trControl = train_control,
-  method = "glm",
-  family="binomial",
-  metric="Brier Score"
-)
-print(c("Cluster-Elo Brier Score",as.numeric(model$results[2])))
+# #Cluster-Elo Win Probability Model
+# model <- train(
+#   w_l ~ opponent_cluster+surface+pwin,
+#   data = playertest,
+#   trControl = train_control,
+#   method = "glm",
+#   family="binomial",
+#   metric="Brier Score"
+# )
+# print(c("Cluster-Elo Brier Score",as.numeric(model$results[2])))
 
 
 options(warn = oldw)
+}
 
 
-# #split data into training and test with 75% in training
-#
-# player<-player[!is.na(player$w_l),]
-# training_set<-createDataPartition(player$w_l,p=.75,list=FALSE)
-# player_training<-player[training_set,]
-# player_test<-player[-training_set,]
-# 
+
 # #logistic regression prep
 # 
 # #set as factors surface, w_l, and opponent_cluster
