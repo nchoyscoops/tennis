@@ -100,7 +100,6 @@ Example: Pete Sampras
 
 ## Result
 
-    ## [1] "Average Brier Score Cluster" "0.241870578793201"          
-    ## [1] "Average Brier Score Average Win Rate"
-    ## [2] "0.247596452494981"                   
-    ## [1] "Average Brier Score Elo-Rating" "0.306517739068948"
+    ## [1] "Avg Cluster Brier Score" "0.241870578793201"      
+    ## [1] "Avg Win Rate Brier Score " "0.247596452494981"        
+    ## [1] "Avg Elo-Rating Brier Score " "0.306517739068948"
